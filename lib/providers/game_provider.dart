@@ -6,8 +6,13 @@ import '../models/move_record.dart';
 import '../colors/constants/board_data.dart';
 import '../services/audio_service.dart';
 import '../services/stats_service.dart';
+import 'hotspot_multiplayer_provider.dart';
 
-enum GameMode { classic, advanced }
+enum GameMode {
+  classic,
+  advanced,
+  multiplayer,
+}
 enum GamePhase { setup, playing, pendingSwap, pendingSkipOpponent, finished }
 enum GameEvent { none, snakeBite, ladderClimb, safeZone, shieldBlocked, trap, boost, teleport, bonusRoll }
 
@@ -29,6 +34,9 @@ class GameProvider extends ChangeNotifier {
   GamePhase phase = GamePhase.setup;
   Player? winner;
   String message = '';
+
+  bool isHost = false;
+  HotspotMultiplayerProvider? hotspotProvider;
 
   // ── Cutscene ──────────────────────────────────────────────────
   GameEvent currentEvent = GameEvent.none;
@@ -60,6 +68,34 @@ class GameProvider extends ChangeNotifier {
 
   void setGameMode(GameMode m) { gameMode = m; notifyListeners(); }
   void setDoubleDiceMode(bool v) { doubleDiceMode = v; notifyListeners(); }
+
+  void setupHotspotHost(int playerCount, int turnTime, List<int> bonusTiles) {
+    isHost = true;
+    hotspotProvider = HotspotMultiplayerProvider(
+      isHost: true,
+      roomConfig: RoomConfig(
+        maxPlayers: playerCount,
+        turnTime: turnTime,
+        bonusTiles: bonusTiles,
+      ),
+    );
+    hotspotProvider!.startHosting();
+  }
+
+  void joinHotspot(String hostName) {
+    isHost = false;
+    hotspotProvider = HotspotMultiplayerProvider(isHost: false);
+    hotspotProvider!.joinRoom(hostName);
+    hotspotProvider!.onGameUpdate = _handleRemoteUpdate;
+  }
+
+  void _handleRemoteUpdate(GameStateUpdate update) {
+    // Sync remote moves into your local game state
+    diceValue = update.diceValue;
+    currentPlayerIndex = update.currentPlayerIndex;
+    playerPositions = update.playerPositions;
+    notifyListeners();
+  }
 
   void initPlayers(int count) {
     players = List.generate(count, (i) => Player(
@@ -142,11 +178,19 @@ class GameProvider extends ChangeNotifier {
         t.cancel();
         isRolling = false;
         _processRoll();
+
+        // Sync to clients if host
+        if (isHost && hotspotProvider != null) {
+          hotspotProvider!.sendUpdate(GameStateUpdate(
+            diceValue: useDoubleDice ? dice1 + dice2 : dice1,
+            currentPlayerIndex: currentPlayerIndex,
+            playerPositions: players.map((p) => p.position).toList(),
+          ));
+        }
       }
       notifyListeners();
     });
   }
-
   void _processRoll() {
     final rolls = useDoubleDice ? [dice1, dice2] : [dice1];
     final total = rolls.fold(0, (a, b) => a + b);
