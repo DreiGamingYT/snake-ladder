@@ -4,6 +4,8 @@ import '../providers/game_provider.dart';
 import '../colors/widgets/board_widget.dart';
 import '../colors/widgets/dice_widget.dart';
 import '../colors/widgets/player_info_panel.dart';
+import '../colors/widgets/confetti_widget.dart';
+import '../colors/widgets/move_history_sheet.dart';
 
 class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
@@ -15,41 +17,44 @@ class GameScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
-        title: const Text(
-          '🐍 Snake & Ladder 🪜',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        title: Consumer<GameProvider>(
+          builder: (_, game, __) => Text(
+            game.gameMode == GameMode.advanced
+                ? '⚡ Advanced Mode'
+                : '🐍 Classic Mode',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
         ),
         actions: [
-          // Sound toggles
           Consumer<GameProvider>(
-            builder: (_, game, __) => Row(
-              children: [
-                IconButton(
-                  icon: Icon(game.musicEnabled ? Icons.music_note : Icons.music_off, size: 20),
-                  tooltip: 'Toggle Music',
-                  onPressed: game.toggleMusic,
-                ),
-                IconButton(
-                  icon: Icon(game.sfxEnabled ? Icons.volume_up : Icons.volume_off, size: 20),
-                  tooltip: 'Toggle SFX',
-                  onPressed: game.toggleSFX,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 22),
-            tooltip: 'Restart',
-            onPressed: () {
-              context.read<GameProvider>().resetGame();
-              Navigator.pop(context);
-            },
+            builder: (_, game, __) => Row(children: [
+              IconButton(
+                icon: Icon(game.musicEnabled ? Icons.music_note : Icons.music_off, size: 20),
+                onPressed: game.toggleMusic,
+              ),
+              IconButton(
+                icon: Icon(game.sfxEnabled ? Icons.volume_up : Icons.volume_off, size: 20),
+                onPressed: game.toggleSFX,
+              ),
+              IconButton(
+                icon: const Icon(Icons.history, size: 20),
+                tooltip: 'Move History',
+                onPressed: () => MoveHistorySheet.show(context),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 20),
+                onPressed: () {
+                  context.read<GameProvider>().resetGame();
+                  Navigator.pop(context);
+                },
+              ),
+            ]),
           ),
         ],
       ),
       body: Consumer<GameProvider>(
         builder: (context, game, _) {
-          // Show win dialog when game finishes
+          // Trigger win dialog
           if (game.phase == GamePhase.finished) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (ModalRoute.of(context)?.isCurrent ?? false) {
@@ -58,14 +63,56 @@ class GameScreen extends StatelessWidget {
             });
           }
 
-          return LayoutBuilder(
-            builder: (ctx, constraints) {
-              final isLandscape = constraints.maxWidth > constraints.maxHeight;
-              if (isLandscape) {
-                return _LandscapeLayout();
+          // Trigger swap/skip dialogs
+          if (game.phase == GamePhase.pendingSwap) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ModalRoute.of(context)?.isCurrent ?? false) {
+                _showPickPlayerDialog(
+                  context, game,
+                  title: '🔄 Swap Positions',
+                  subtitle: 'Choose a player to swap with',
+                  targetIndices: game.swapTargetIndices,
+                  onPick: game.resolveSwap,
+                  onCancel: game.cancelPending,
+                );
               }
-              return _PortraitLayout();
-            },
+            });
+          }
+
+          if (game.phase == GamePhase.pendingSkipOpponent) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ModalRoute.of(context)?.isCurrent ?? false) {
+                _showPickPlayerDialog(
+                  context, game,
+                  title: '🚫 Skip Opponent',
+                  subtitle: 'Choose a player to skip',
+                  targetIndices: game.swapTargetIndices,
+                  onPick: game.resolveSkipOpponent,
+                  onCancel: game.cancelPending,
+                );
+              }
+            });
+          }
+
+          return Stack(
+            children: [
+              // Main layout
+              LayoutBuilder(
+                builder: (ctx, constraints) {
+                  if (constraints.maxWidth > constraints.maxHeight) {
+                    return _LandscapeLayout();
+                  }
+                  return _PortraitLayout();
+                },
+              ),
+
+              // Event cutscene overlay
+              if (game.currentEvent != GameEvent.none)
+                _CutsceneOverlay(event: game.currentEvent, message: game.message),
+
+              // Confetti
+              ConfettiOverlay(active: game.phase == GamePhase.finished),
+            ],
           );
         },
       ),
@@ -94,27 +141,42 @@ class GameScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('🎉 Game Over! 🎉',
-                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Text(game.winner!.avatar, style: const TextStyle(fontSize: 72)),
-              const SizedBox(height: 8),
-              Text(
-                '${game.winner!.name} Wins!',
-                style: TextStyle(
-                  color: game.winner!.color,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
-              ),
               const SizedBox(height: 6),
+              Text('${game.winner!.name} Wins!',
+                  style: TextStyle(
+                      color: game.winner!.color, fontSize: 26, fontWeight: FontWeight.w900),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 4),
               const Text('🏆 Congratulations! 🏆',
-                  style: TextStyle(color: Colors.white60, fontSize: 15)),
-              const SizedBox(height: 24),
+                  style: TextStyle(color: Colors.white60, fontSize: 14)),
+              const SizedBox(height: 16),
+              // Quick stats
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white12,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: game.players.map((p) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(children: [
+                      Text('${p.avatar} ${p.name}: ',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text('${p.totalMoves} moves  🐍${p.snakesHit}  🪜${p.laddersClimbed}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    ]),
+                  )).toList(),
+                ),
+              ),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _DialogButton(
+                  _DlgBtn(
                     label: '🏠 Menu',
                     onTap: () {
                       Navigator.pop(context);
@@ -122,19 +184,84 @@ class GameScreen extends StatelessWidget {
                       Navigator.pop(context);
                     },
                   ),
-                  _DialogButton(
+                  _DlgBtn(
                     label: '🔄 Play Again',
                     isPrimary: true,
                     onTap: () {
                       Navigator.pop(context);
                       game.resetGame();
-                      for (final p in game.players) {
-                        p.position = 0;
-                      }
                       game.startGame();
                     },
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPickPlayerDialog(
+      BuildContext context,
+      GameProvider game, {
+        required String title,
+        required String subtitle,
+        required List<int> targetIndices,
+        required void Function(int) onPick,
+        required VoidCallback onCancel,
+      }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: const Color(0xFF1B2B1B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+              const SizedBox(height: 18),
+              ...targetIndices.map((idx) {
+                final p = game.players[idx];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    onPick(idx);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: p.color.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: p.color.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(children: [
+                      Text(p.avatar, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(width: 12),
+                      Text(p.name,
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      const Spacer(),
+                      Text('Sq ${p.position}',
+                          style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    ]),
+                  ),
+                );
+              }),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onCancel();
+                },
+                child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
               ),
             ],
           ),
@@ -149,50 +276,38 @@ class GameScreen extends StatelessWidget {
 class _PortraitLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const PlayerInfoPanel(),
-        const TimerBar(),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: const BoardWidget(),
-          ),
-        ),
-        const DiceWidget(),
-        const _MessageBanner(),
-        const SizedBox(height: 8),
-      ],
-    );
+    return Column(children: [
+      const PlayerInfoPanel(),
+      const TimerBar(),
+      const DiceHistoryBar(),
+      const SizedBox(height: 4),
+      const Expanded(child: Padding(padding: EdgeInsets.all(8), child: BoardWidget())),
+      const DiceWidget(),
+      const PowerUpBar(),
+      const _MessageBanner(),
+      const SizedBox(height: 6),
+    ]);
   }
 }
 
 class _LandscapeLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 5,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: const BoardWidget(),
-          ),
-        ),
-        Expanded(
-          flex: 4,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              PlayerInfoPanel(),
-              TimerBar(),
-              DiceWidget(),
-              _MessageBanner(),
-            ],
-          ),
-        ),
-      ],
-    );
+    return Row(children: [
+      const Expanded(
+          flex: 5, child: Padding(padding: EdgeInsets.all(8), child: BoardWidget())),
+      Expanded(
+        flex: 4,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [
+          PlayerInfoPanel(),
+          TimerBar(),
+          DiceHistoryBar(),
+          DiceWidget(),
+          PowerUpBar(),
+          _MessageBanner(),
+        ]),
+      ),
+    ]);
   }
 }
 
@@ -204,19 +319,91 @@ class _MessageBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<GameProvider>(
-      builder: (context, game, _) => AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
+      builder: (_, game, __) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
         child: Padding(
           key: ValueKey(game.message),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Text(
-            game.message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+          child: Text(game.message,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Cutscene overlay ──────────────────────────────────────────────────────────
+
+class _CutsceneOverlay extends StatelessWidget {
+  final GameEvent event;
+  final String message;
+  const _CutsceneOverlay({required this.event, required this.message});
+
+  String get _emoji {
+    switch (event) {
+      case GameEvent.snakeBite: return '🐍';
+      case GameEvent.ladderClimb: return '🪜';
+      case GameEvent.safeZone: return '🛡️';
+      case GameEvent.shieldBlocked: return '🛡️';
+      case GameEvent.trap: return '🪤';
+      case GameEvent.boost: return '🚀';
+      case GameEvent.teleport: return '🌀';
+      case GameEvent.bonusRoll: return '🎲';
+      default: return '✨';
+    }
+  }
+
+  Color get _color {
+    switch (event) {
+      case GameEvent.snakeBite: return Colors.red.shade900;
+      case GameEvent.ladderClimb: return Colors.green.shade900;
+      case GameEvent.safeZone:
+      case GameEvent.shieldBlocked: return Colors.blue.shade900;
+      case GameEvent.trap: return Colors.brown.shade900;
+      case GameEvent.boost: return Colors.cyan.shade900;
+      case GameEvent.teleport: return Colors.purple.shade900;
+      case GameEvent.bonusRoll: return Colors.amber.shade900;
+      default: return Colors.black87;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 350),
+      builder: (_, v, child) => Opacity(opacity: v, child: child),
+      child: Align(
+        alignment: Alignment.center,
+        child: IgnorePointer(
+          child: Container(
+            margin: const EdgeInsets.all(40),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white24, width: 2),
             ),
-            textAlign: TextAlign.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.5, end: 1.0),
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.elasticOut,
+                  builder: (_, s, child) => Transform.scale(scale: s, child: child),
+                  child: Text(_emoji, style: const TextStyle(fontSize: 72)),
+                ),
+                const SizedBox(height: 12),
+                Text(message,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center),
+              ],
+            ),
           ),
         ),
       ),
@@ -224,18 +411,13 @@ class _MessageBanner extends StatelessWidget {
   }
 }
 
-// ── Win dialog button ─────────────────────────────────────────────────────────
+// ── Dialog button ─────────────────────────────────────────────────────────────
 
-class _DialogButton extends StatelessWidget {
+class _DlgBtn extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final bool isPrimary;
-
-  const _DialogButton({
-    required this.label,
-    required this.onTap,
-    this.isPrimary = false,
-  });
+  const _DlgBtn({required this.label, required this.onTap, this.isPrimary = false});
 
   @override
   Widget build(BuildContext context) {
@@ -247,14 +429,11 @@ class _DialogButton extends StatelessWidget {
           color: isPrimary ? Colors.amber : Colors.white12,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isPrimary ? const Color(0xFF4E2B00) : Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
-        ),
+        child: Text(label,
+            style: TextStyle(
+                color: isPrimary ? const Color(0xFF4E2B00) : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14)),
       ),
     );
   }

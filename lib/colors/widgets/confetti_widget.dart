@@ -111,7 +111,7 @@ class _ConfettiPainter extends CustomPainter {
       final opacity = t < 0.8 ? 1.0 : (1 - (t - 0.8) / 0.2);
       final rotation = t * pi * 6 + p.angle;
 
-      paint.color = p.color.withOpacity(opacity.clamp(0.0, 1.0));
+      paint.color = p.color.withValues(alpha: opacity.clamp(0.0, 1.0));
 
       canvas.save();
       canvas.translate(x, y);

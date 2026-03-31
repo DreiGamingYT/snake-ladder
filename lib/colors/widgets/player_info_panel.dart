@@ -24,14 +24,14 @@ class PlayerInfoPanel extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isCurrent ? p.color : Colors.white.withOpacity(0.08),
+                  color: isCurrent ? p.color : Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isCurrent ? Colors.white : Colors.transparent,
                     width: 2,
                   ),
                   boxShadow: isCurrent
-                      ? [BoxShadow(color: p.color.withOpacity(0.5), blurRadius: 10)]
+                      ? [BoxShadow(color: p.color.withValues(alpha: 0.5), blurRadius: 10)]
                       : [],
                 ),
                 child: Row(
@@ -234,15 +234,15 @@ class DiceHistoryBar extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(i == 0 ? 0.35 : 0.15),
+                  color: color.withValues(alpha: i == 0 ? 0.35 : 0.15),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: color.withOpacity(i == 0 ? 0.8 : 0.3), width: i == 0 ? 1.5 : 1),
+                      color: color.withValues(alpha: i == 0 ? 0.8 : 0.3), width: i == 0 ? 1.5 : 1),
                 ),
                 child: Text(
                   '${h['avatar']} ${rolls.length == 1 ? '$total' : '${rolls[0]}+${rolls[1]}=$total'}',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(i == 0 ? 1.0 : 0.6),
+                    color: Colors.white.withValues(alpha: i == 0 ? 1.0 : 0.6),
                     fontSize: 12,
                     fontWeight: i == 0 ? FontWeight.bold : FontWeight.normal,
                   ),

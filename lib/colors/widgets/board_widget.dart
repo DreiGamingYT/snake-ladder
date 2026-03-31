@@ -22,7 +22,7 @@ class BoardWidget extends StatelessWidget {
                 border: Border.all(color: const Color(0xFF5D4037), width: 4),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 12,
                     offset: const Offset(4, 4),
                   ),
@@ -118,7 +118,7 @@ class _Token extends StatelessWidget {
         ),
         boxShadow: [
           if (isCurrent)
-            BoxShadow(color: color.withOpacity(0.7), blurRadius: 10, spreadRadius: 2),
+            BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 10, spreadRadius: 2),
           const BoxShadow(color: Colors.black38, blurRadius: 3),
         ],
       ),
@@ -157,7 +157,7 @@ class _BoardPainter extends CustomPainter {
       }
     }
     // Grid lines
-    final gp = Paint()..color = const Color(0xFF8BC34A).withOpacity(0.3)..strokeWidth = 0.5;
+    final gp = Paint()..color = const Color(0xFF8BC34A).withValues(alpha: 0.3)..strokeWidth = 0.5;
     for (int i = 0; i <= 10; i++) {
       canvas.drawLine(Offset(i * cellSize, 0), Offset(i * cellSize, 10 * cellSize), gp);
       canvas.drawLine(Offset(0, i * cellSize), Offset(10 * cellSize, i * cellSize), gp);
@@ -174,13 +174,13 @@ class _BoardPainter extends CustomPainter {
       // Tinted background
       canvas.drawRect(
         rect,
-        Paint()..color = tile.tileColor.withOpacity(0.28),
+        Paint()..color = tile.tileColor.withValues(alpha: 0.28),
       );
 
       // Rounded border
       final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
       canvas.drawRRect(rrect, Paint()
-        ..color = tile.tileColor.withOpacity(0.7)
+        ..color = tile.tileColor.withValues(alpha: 0.7)
         ..strokeWidth = 1.2
         ..style = PaintingStyle.stroke);
 
@@ -195,7 +195,7 @@ class _BoardPainter extends CustomPainter {
         // Draw a shield overlay on this snake head
         final c = _cellCenter(sq);
         canvas.drawCircle(c, cellSize * 0.2,
-            Paint()..color = const Color(0xFF0288D1).withOpacity(0.4));
+            Paint()..color = const Color(0xFF0288D1).withValues(alpha: 0.4));
         _drawText(canvas, '🛡️', c, cellSize * 0.28);
       }
     }
@@ -229,7 +229,7 @@ class _BoardPainter extends CustomPainter {
 
       final bodyPaint = Paint()
         ..color = isSafe
-            ? const Color(0xFF90A4AE).withOpacity(0.6)
+            ? const Color(0xFF90A4AE).withValues(alpha: 0.6)
             : const Color(0xFFB71C1C)
         ..strokeWidth = cellSize * 0.13
         ..strokeCap = StrokeCap.round
@@ -254,7 +254,7 @@ class _BoardPainter extends CustomPainter {
         canvas.drawPath(
           path,
           Paint()
-            ..color = const Color(0xFFE53935).withOpacity(0.45)
+            ..color = const Color(0xFFE53935).withValues(alpha: 0.45)
             ..strokeWidth = cellSize * 0.065
             ..strokeCap = StrokeCap.round
             ..style = PaintingStyle.stroke,

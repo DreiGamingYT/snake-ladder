@@ -77,10 +77,10 @@ class _HistoryContent extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: m.playerColor.withOpacity(0.12),
+                        color: m.playerColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: m.playerColor.withOpacity(0.3), width: 1),
+                            color: m.playerColor.withValues(alpha: 0.3), width: 1),
                       ),
                       child: Row(
                         children: [

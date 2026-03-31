@@ -111,12 +111,12 @@ class _LeaderboardTab extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: i == 0
-                ? const Color(0xFFFFD600).withOpacity(0.12)
-                : Colors.white.withOpacity(0.06),
+                ? const Color(0xFFFFD600).withValues(alpha: 0.12)
+                : Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: i == 0
-                  ? const Color(0xFFFFD600).withOpacity(0.4)
+                  ? const Color(0xFFFFD600).withValues(alpha: 0.4)
                   : Colors.white12,
               width: i == 0 ? 1.5 : 1,
             ),
@@ -186,8 +186,8 @@ class _CurrentGameTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
               color: game.gameMode == GameMode.advanced
-                  ? const Color(0xFF7E57C2).withOpacity(0.3)
-                  : Colors.green.withOpacity(0.2),
+                  ? const Color(0xFF7E57C2).withValues(alpha: 0.3)
+                  : Colors.green.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                   color: game.gameMode == GameMode.advanced
@@ -214,9 +214,9 @@ class _CurrentGameTab extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: p.color.withOpacity(isWinner ? 0.22 : 0.1),
+              color: p.color.withValues(alpha: isWinner ? 0.22 : 0.1),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: p.color.withOpacity(isWinner ? 0.7 : 0.3), width: isWinner ? 2 : 1),
+              border: Border.all(color: p.color.withValues(alpha: isWinner ? 0.7 : 0.3), width: isWinner ? 2 : 1),
             ),
             child: Row(
               children: [
@@ -267,7 +267,7 @@ class _CurrentGameTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.07),
+              color: Colors.white.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(

@@ -22,7 +22,10 @@ class AudioService {
 
   Future<void> _playSfx(String file) async {
     if (!_sfxEnabled) return;
-    try { await _sfx.play(AssetSource('sounds/$file')); } catch (_) {}
+    try {
+      await _sfx.stop();
+      await _sfx.play(AssetSource('sounds/$file'));
+    } catch (_) {}
   }
 
   Future<void> playDiceRoll() => _playSfx('dice_roll.mp3');
